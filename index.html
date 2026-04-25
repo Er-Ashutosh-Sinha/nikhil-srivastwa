@@ -1778,13 +1778,15 @@
 
     .modal-inner {
       position: relative;
-      width: min(90vw, 1000px);
+      width: 100vw;
+      height: 100vh;
+      padding: 56px 24px 24px;
     }
 
     .modal-close {
       position: absolute;
-      top: -48px;
-      right: 0;
+      top: 24px;
+      right: 24px;
       font-family: var(--font-mono);
       font-size: 0.72rem;
       letter-spacing: 0.15em;
@@ -1803,10 +1805,42 @@
       color: var(--amber);
     }
 
+    .code-modal-actions {
+      position: absolute;
+      top: auto;
+      right: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 2;
+    }
+
+    .code-modal-btn {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #d18d1e;
+      background: #4b4b4b;
+      border: 1px solid;
+      cursor: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s;
+      padding: 3px;
+    }
+
+    .code-modal-btn:hover {
+      color: var(--amber);
+    }
+
     .modal-video-wrap {
-      aspect-ratio: 16/9;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: auto;
       background: var(--surface-1);
-      border-radius: var(--radius);
+      border-radius: 0;
       overflow: hidden;
       border: 1px solid var(--border);
       display: flex;
@@ -1874,8 +1908,9 @@
     }
 
     .modal-inner--code {
-      width: min(92vw, 920px);
-      max-height: min(88vh, 860px);
+      width: 100vw;
+      height: 100vh;
+      max-height: none;
       display: flex;
       flex-direction: column;
     }
@@ -1899,7 +1934,7 @@
     .code-modal-body {
       flex: 1;
       min-height: 0;
-      max-height: min(72vh, 640px);
+      max-height: none;
       overflow: auto;
       padding: 20px 18px;
       margin: 0;
@@ -1944,7 +1979,10 @@
        ============================================================ -->
   <div id="code-modal" role="dialog" aria-modal="true" aria-labelledby="code-modal-title">
     <div class="modal-inner modal-inner--code">
-      <button type="button" class="modal-close" id="code-modal-close">✕ &nbsp;Close</button>
+      <div class="code-modal-actions">
+        <button type="button" class="code-modal-btn" id="code-modal-copy">⧉ &nbsp;Copy</button>
+        <button type="button" class="code-modal-btn" id="code-modal-close">✕ &nbsp;Close</button>
+      </div>
       <div class="code-modal-header">
         <span class="code-modal-title" id="code-modal-title">Script</span>
       </div>
@@ -2537,11 +2575,8 @@
 
         <!-- Contact form + icon links (same column as before) -->
         <div class="contact-links reveal">
-          <form class="contact-form" action="https://formsubmit.co/knikhil68@gmail.com" method="POST">
-            <input type="hidden" name="_subject" value="Portfolio — New message" />
-            <input type="hidden" name="_captcha" value="false" />
-            <input type="hidden" name="_template" value="table" />
-
+          <!-- EmailJS: set EMAILJS_* in script; template uses {{from_name}}, {{from_email}}, {{reply_to}}, {{message}} -->
+          <form class="contact-form" action="#" method="post" novalidate>
             <div class="contact-field">
               <label class="contact-field-label" for="contact-email">Email ID</label>
               <input id="contact-email" type="email" name="email" required autocomplete="email"
@@ -2602,6 +2637,7 @@
   <!-- ============================================================
        JAVASCRIPT
        ============================================================ -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script>
     /* ----------------------------------------------------------
        CUSTOM CURSOR
@@ -2788,6 +2824,13 @@
     const codeModalBody = document.getElementById('code-modal-body');
     const codeModalTitle = document.getElementById('code-modal-title');
     const codeModalClose = document.getElementById('code-modal-close');
+    const codeModalCopy = document.getElementById('code-modal-copy');
+    let codeModalPlainText = '';
+    const contactForm = document.querySelector('.contact-form');
+
+    const EMAILJS_PUBLIC_KEY = 'bXPU_Wd7u6Yy9R86m';
+    const EMAILJS_SERVICE_ID = 'service_jnj34rl';
+    const EMAILJS_TEMPLATE_ID = 'template_88fmw2u';
 
     function escapeHtml(value) {
       return value
@@ -2885,11 +2928,13 @@
       if (!codeModal) return;
       codeModal.classList.remove('open');
       if (codeModalBody) codeModalBody.innerHTML = '';
+      codeModalPlainText = '';
     }
 
     function openCodeModal(filename, fullSource) {
       if (!codeModal || !codeModalBody || !codeModalTitle) return;
       codeModalTitle.textContent = filename;
+      codeModalPlainText = fullSource;
       codeModalBody.innerHTML = highlightPython(fullSource);
       codeModal.classList.add('open');
     }
@@ -2897,9 +2942,93 @@
     if (codeModalClose) {
       codeModalClose.addEventListener('click', closeCodeModal);
     }
+    if (codeModalCopy) {
+      codeModalCopy.addEventListener('click', () => {
+        const textToCopy = codeModalPlainText || (codeModalBody ? codeModalBody.textContent : '');
+        if (!textToCopy) return;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          codeModalCopy.innerHTML = '&#10003;&nbsp;Copied';
+          window.setTimeout(() => {
+            codeModalCopy.innerHTML = '&#10697;&nbsp;Copy';
+          }, 1200);
+        }).catch(() => {
+          const ta = document.createElement('textarea');
+          ta.value = textToCopy;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'absolute';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          codeModalCopy.innerHTML = '&#10003;&nbsp;Copied';
+          window.setTimeout(() => {
+            codeModalCopy.innerHTML = '&#10697;&nbsp;Copy';
+          }, 1200);
+        });
+      });
+    }
     if (codeModal) {
       codeModal.addEventListener('click', e => {
         if (e.target === codeModal) closeCodeModal();
+      });
+    }
+
+    if (contactForm) {
+      contactForm.addEventListener('submit', async e => {
+        e.preventDefault();
+
+        if (typeof emailjs === 'undefined') {
+          alert('Email service failed to load. Check your connection and try again.');
+          return;
+        }
+
+        if (
+          !EMAILJS_PUBLIC_KEY || EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY' ||
+          !EMAILJS_SERVICE_ID || EMAILJS_SERVICE_ID === 'YOUR_SERVICE_ID' ||
+          !EMAILJS_TEMPLATE_ID || EMAILJS_TEMPLATE_ID === 'YOUR_TEMPLATE_ID'
+        ) {
+          alert('EmailJS is not configured. Set EMAILJS_PUBLIC_KEY, EMAILJS_SERVICE_ID, and EMAILJS_TEMPLATE_ID in the script block (search for EMAILJS_).');
+          return;
+        }
+
+        const emailInput = document.getElementById('contact-email');
+        const nameInput = document.getElementById('contact-name');
+        const messageInput = document.getElementById('contact-message');
+        const submitBtn = contactForm.querySelector('.contact-form-submit');
+
+        const fromEmail = emailInput ? emailInput.value.trim() : '';
+        const senderName = nameInput ? nameInput.value.trim() : '';
+        const messageText = messageInput ? messageInput.value.trim() : '';
+        const defaultBtnText = submitBtn ? submitBtn.textContent : 'Send';
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Sending…';
+        }
+
+        try {
+          emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+            from_name: senderName,
+            from_email: fromEmail,
+            reply_to: fromEmail,
+            message: messageText
+          });
+          contactForm.reset();
+          if (submitBtn) submitBtn.textContent = 'Sent';
+        } catch (err) {
+          console.error(err);
+          if (submitBtn) submitBtn.textContent = 'Send failed';
+          alert('Could not send. In EmailJS: match template variables (from_name, from_email, message, reply_to), set To to your inbox, and add this domain under Account → Security / Allowed domains.');
+        } finally {
+          window.setTimeout(() => {
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = defaultBtnText;
+            }
+          }, 2200);
+        }
       });
     }
 
